@@ -34,8 +34,20 @@ def extract_structure(pdf_path):
     doc = pymupdf.open(pdf_path)
     
     meta = doc.metadata
+    full_title = meta.get("title") or "Unknown Title"
+    
+    # Heuristic to suggest a short title
+    if full_title != "Unknown Title":
+        # Split at colon or em-dash to drop subtitles
+        short_title = re.split(r'[:\-]', full_title)[0].strip()
+    else:
+        # Fallback: grab the first substantial line from the very first page
+        first_page_lines = doc[0].get_text().strip().split('\n')
+        short_title = next((line.strip() for line in first_page_lines if len(line.strip()) > 3), "Unknown Title")
+
     metadata_dict = {
-        "title": meta.get("title") or "Unknown Title",
+        "title": full_title,
+        "short_title": short_title,
         "author": meta.get("author") or "Unknown Author"
     }
     

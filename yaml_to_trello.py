@@ -2,6 +2,7 @@ import os
 import sys
 import yaml
 import requests
+import re
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=".secrets")
@@ -30,7 +31,6 @@ class TrelloManager:
         return requests.post(f"{self.base_url}/labels", params=payload).json()['id']
 
     def get_existing_card_names(self, list_id):
-        """Fetches all existing cards in the target list to prevent duplicates."""
         url = f"{self.base_url}/lists/{list_id}/cards"
         response = requests.get(url, params=self.auth)
         return {card['name'] for card in response.json()}
@@ -84,9 +84,16 @@ def main():
         print(f"{key.capitalize()}: {value}")
     print("-------------------------------\n")
     
-    tag_name = input("Tag/Label name for these cards (e.g., 'DevOps'): ")
+    tag_name = input("Tag/Label name for the Trello board (e.g., 'DevOps'): ")
     
-    # Build the static part of the comment text
+    # Present the suggested short name as the default option
+    suggested_short = metadata.get('short_title', metadata.get('title', 'Book'))
+    short_name = input(f"Short book name for card titles [{suggested_short}]: ")
+    
+    # Use the suggestion if the user simply hits Enter
+    if not short_name.strip():
+        short_name = suggested_short
+    
     base_comment_lines = [
         f"**Source:** {metadata.get('title', 'Unknown Title')}",
         f"**Author:** {metadata.get('author', 'Unknown Author')}"
@@ -107,8 +114,11 @@ def main():
     
     print("\nBuilding Trello Cards...")
     for idx, chapter in enumerate(chapters, 1):
-        # Title no longer contains the page count
-        card_title = f"{tag_name} {idx}: {chapter['title']}"
+        
+        raw_title = chapter['title']
+        cleaned_title = re.sub(r'^Chapter\s+\d+[\.\:]?\s*', '', raw_title, flags=re.IGNORECASE)
+        
+        card_title = f"{short_name.strip()}: {idx}. {cleaned_title}"
         
         if card_title in existing_cards:
             print(f"Skipping -> {card_title} (Already exists)")
@@ -116,7 +126,6 @@ def main():
             
         print(f"Creating -> {card_title}")
         
-        # Dynamically add the page count to this specific card's comment
         chapter_comment = f"{base_comment_text}\n**Length:** {chapter.get('length_pages', 0)} pages"
         
         trello.create_card(

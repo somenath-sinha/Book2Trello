@@ -1,4 +1,4 @@
-import pymupdf as fitz
+import pymupdf  # Modern PyMuPDF import
 import yaml
 import sys
 
@@ -16,56 +16,78 @@ SUBHEADING_IGNORE = [
 ]
 
 def should_ignore_chapter(title):
-    title_lower = title.strip().lower()
-    # Check if any fluff keyword is in the chapter title
-    return any(ignore in title_lower for ignore in CHAPTER_IGNORE)
+    return any(ignore in title.strip().lower() for ignore in CHAPTER_IGNORE)
 
 def should_ignore_subheading(title):
-    title_lower = title.strip().lower()
-    # Check if any fluff keyword is in the subheading
-    return any(ignore in title_lower for ignore in SUBHEADING_IGNORE)
+    return any(ignore in title.strip().lower() for ignore in SUBHEADING_IGNORE)
+
+def simplify_leaf_nodes(nodes):
+    """Cleans up the YAML by turning empty dictionaries into simple strings."""
+    simplified = []
+    for n in nodes:
+        if not n["subheadings"]:
+            simplified.append(n["title"])
+        else:
+            n["subheadings"] = simplify_leaf_nodes(n["subheadings"])
+            simplified.append(n)
+    return simplified
 
 def extract_structure(pdf_path):
-    doc = fitz.open(pdf_path)
+    # Updated to use the modern pymupdf namespace
+    doc = pymupdf.open(pdf_path)
     toc = doc.get_toc() 
     
     book_structure = []
-    current_chapter = None
+    stack = []
+    ignore_threshold = float('inf')
     
     for item in toc:
         level, title, page = item
         
-        if level == 1:
-            if should_ignore_chapter(title):
-                # Nullify current_chapter so its subheadings are also skipped
-                current_chapter = None 
-                continue
-                
-            current_chapter = {
-                "title": title.strip(),
-                "page": page,
-                "subheadings": []
-            }
-            book_structure.append(current_chapter)
+        # If we are deeper than an ignored parent, skip this item entirely
+        if level > ignore_threshold:
+            continue
+        else:
+            ignore_threshold = float('inf') # Reset threshold when we go back up the tree
             
-        elif level == 2 and current_chapter is not None:
-            if not should_ignore_subheading(title):
-                current_chapter["subheadings"].append(title.strip())
+        title_clean = title.strip()
+        
+        # Check if THIS node should trigger an ignore threshold
+        if level == 1 and should_ignore_chapter(title_clean):
+            ignore_threshold = level
+            continue
+        elif level > 1 and should_ignore_subheading(title_clean):
+            ignore_threshold = level
+            continue
             
-    # Calculate chapter lengths
+        node = {"title": title_clean, "page": page, "subheadings": []}
+        
+        # Pop items off the stack until we find our true parent
+        while stack and stack[-1][0] >= level:
+            stack.pop()
+            
+        if not stack:
+            # Level 1 items have no parent, add to root
+            book_structure.append(node)
+        else:
+            # Append this node to its parent's subheadings list
+            stack[-1][1]["subheadings"].append(node)
+            
+        stack.append((level, node))
+        
+    # Calculate lengths and clean up temporary 'page' data
     for i in range(len(book_structure)):
         start_page = book_structure[i]["page"]
-        
-        # If there's a next chapter, use its start page to calculate length
         if i + 1 < len(book_structure):
-            end_page = book_structure[i+1]["page"]
-            length = end_page - start_page
+            length = book_structure[i+1]["page"] - start_page
         else:
-            # For the final chapter, use the total page count of the PDF
             length = doc.page_count - start_page 
             
         book_structure[i]["length_pages"] = max(1, length)
-        del book_structure[i]["page"] # Clean up the page number from the final YAML
+        del book_structure[i]["page"]
+        
+        # Clean up the nested leaf nodes for a prettier YAML
+        book_structure[i]["subheadings"] = simplify_leaf_nodes(book_structure[i]["subheadings"])
         
     return book_structure
 
@@ -81,8 +103,7 @@ def main():
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(structure, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
         
-    print(f"Extraction complete! Filtered out non-content chapters and exercises.")
-    print(f"Please review '{output_file}' before pushing to Trello.")
+    print(f"Extraction complete! Deeply nested structure saved to '{output_file}'.")
 
 if __name__ == "__main__":
     main()

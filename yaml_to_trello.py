@@ -29,20 +29,22 @@ class TrelloManager:
         payload = {**self.auth, "name": label_name, "color": color, "idBoard": board_id}
         return requests.post(f"{self.base_url}/labels", params=payload).json()['id']
 
+    def get_existing_card_names(self, list_id):
+        """Fetches all existing cards in the target list to prevent duplicates."""
+        url = f"{self.base_url}/lists/{list_id}/cards"
+        response = requests.get(url, params=self.auth)
+        return {card['name'] for card in response.json()}
+
     def _flatten_subheadings(self, subheadings, prefix=""):
-        """Recursively turns a nested tree into a flat list of breadcrumb strings."""
         flat_list = []
         for item in subheadings:
             if isinstance(item, str):
-                # Leaf node
                 flat_list.append(f"{prefix}{item}")
             elif isinstance(item, dict):
-                # Parent node with its own subheadings
                 title = item["title"]
                 flat_list.append(f"{prefix}{title}")
                 
                 if "subheadings" in item:
-                    # Pass down the breadcrumb trail
                     new_prefix = f"{prefix}{title} > " if prefix else f"{title} > "
                     flat_list.extend(self._flatten_subheadings(item["subheadings"], new_prefix))
         return flat_list
@@ -58,7 +60,6 @@ class TrelloManager:
             check_res = requests.post(f"{self.base_url}/cards/{card_id}/checklists", params={**self.auth, "name": "Chapter progress"})
             checklist_id = check_res.json()['id']
             
-            # Flatten the tree before pushing to Trello
             flat_items = self._flatten_subheadings(raw_subheadings)
             
             for item in flat_items:
@@ -70,36 +71,63 @@ def main():
         sys.exit(1)
         
     with open(sys.argv[1], "r", encoding="utf-8") as f:
-        chapters = yaml.safe_load(f)
+        data = yaml.safe_load(f)
+
+    metadata = data.get("metadata", {})
+    chapters = data.get("chapters", [])
 
     board_id = os.getenv("TRELLO_BOARD_ID")
     list_id = os.getenv("TRELLO_LIST_ID")
 
-    print("\n--- Book Metadata ---")
-    tag_name = input("Tag/Label name (e.g., 'Git'): ")
-    book_title = input("Book Name: ")
-    edition = input("Edition: ")
-    isbn = input("ISBN (optional): ")
+    print("\n--- Extracted Book Metadata ---")
+    for key, value in metadata.items():
+        print(f"{key.capitalize()}: {value}")
+    print("-------------------------------\n")
     
-    comment_text = f"**Source:** {book_title}\n**Edition:** {edition}\n**ISBN:** {isbn}"
+    tag_name = input("Tag/Label name for these cards (e.g., 'DevOps'): ")
+    
+    # Build the static part of the comment text
+    base_comment_lines = [
+        f"**Source:** {metadata.get('title', 'Unknown Title')}",
+        f"**Author:** {metadata.get('author', 'Unknown Author')}"
+    ]
+    
+    if "edition" in metadata:
+        base_comment_lines.append(f"**Edition:** {metadata['edition']}")
+    if "isbn" in metadata:
+        base_comment_lines.append(f"**ISBN:** {metadata['isbn']}")
+        
+    base_comment_text = "\n".join(base_comment_lines)
     
     trello = TrelloManager()
     label_id = trello.get_or_create_label(board_id, tag_name)
     
+    print("\nChecking for existing cards...")
+    existing_cards = trello.get_existing_card_names(list_id)
+    
     print("\nBuilding Trello Cards...")
     for idx, chapter in enumerate(chapters, 1):
-        card_title = f"{tag_name} {idx}: {chapter['title']} ({chapter.get('length_pages', 0)} pages)"
+        # Title no longer contains the page count
+        card_title = f"{tag_name} {idx}: {chapter['title']}"
+        
+        if card_title in existing_cards:
+            print(f"Skipping -> {card_title} (Already exists)")
+            continue
+            
         print(f"Creating -> {card_title}")
+        
+        # Dynamically add the page count to this specific card's comment
+        chapter_comment = f"{base_comment_text}\n**Length:** {chapter.get('length_pages', 0)} pages"
         
         trello.create_card(
             list_id=list_id,
             name=card_title,
             label_id=label_id,
-            comment_text=comment_text,
+            comment_text=chapter_comment,
             raw_subheadings=chapter.get('subheadings', [])
         )
         
-    print("\nSuccess! Board populated with nested checklist items.")
+    print("\nSuccess! Board populated.")
 
 if __name__ == "__main__":
     main()

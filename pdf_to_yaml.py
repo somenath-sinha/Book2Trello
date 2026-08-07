@@ -1,15 +1,14 @@
-import pymupdf  # Modern PyMuPDF import
+import pymupdf
 import yaml
 import sys
+import re
 
-# Level 1: Entire chapters to drop
 CHAPTER_IGNORE = [
     "cover", "copyright", "table of contents", "colophon", 
     "acknowledgment", "acknowledgements", "dedication", 
     "preface", "index", "appendix", "bibliography", "about the author"
 ]
 
-# Level 2: Subheadings to drop from valid chapters
 SUBHEADING_IGNORE = [
     "exercise", "case study question", "examples", 
     "learning assessment", "challenge", "capstone project"
@@ -22,7 +21,6 @@ def should_ignore_subheading(title):
     return any(ignore in title.strip().lower() for ignore in SUBHEADING_IGNORE)
 
 def simplify_leaf_nodes(nodes):
-    """Cleans up the YAML by turning empty dictionaries into simple strings."""
     simplified = []
     for n in nodes:
         if not n["subheadings"]:
@@ -33,26 +31,29 @@ def simplify_leaf_nodes(nodes):
     return simplified
 
 def extract_structure(pdf_path):
-    # Updated to use the modern pymupdf namespace
     doc = pymupdf.open(pdf_path)
-    toc = doc.get_toc() 
     
+    meta = doc.metadata
+    metadata_dict = {
+        "title": meta.get("title") or "Unknown Title",
+        "author": meta.get("author") or "Unknown Author"
+    }
+    
+    toc = doc.get_toc() 
     book_structure = []
     stack = []
     ignore_threshold = float('inf')
     
     for item in toc:
-        level, title, page = item
+        level, title_text, page = item
         
-        # If we are deeper than an ignored parent, skip this item entirely
         if level > ignore_threshold:
             continue
         else:
-            ignore_threshold = float('inf') # Reset threshold when we go back up the tree
+            ignore_threshold = float('inf')
             
-        title_clean = title.strip()
+        title_clean = title_text.strip()
         
-        # Check if THIS node should trigger an ignore threshold
         if level == 1 and should_ignore_chapter(title_clean):
             ignore_threshold = level
             continue
@@ -62,20 +63,30 @@ def extract_structure(pdf_path):
             
         node = {"title": title_clean, "page": page, "subheadings": []}
         
-        # Pop items off the stack until we find our true parent
         while stack and stack[-1][0] >= level:
             stack.pop()
             
         if not stack:
-            # Level 1 items have no parent, add to root
             book_structure.append(node)
         else:
-            # Append this node to its parent's subheadings list
             stack[-1][1]["subheadings"].append(node)
             
         stack.append((level, node))
         
-    # Calculate lengths and clean up temporary 'page' data
+    # Scan front matter for Edition and ISBN
+    first_chapter_page = book_structure[0]["page"] if book_structure else 0
+    front_matter_text = ""
+    for p_num in range(min(first_chapter_page - 1, doc.page_count)):
+        front_matter_text += doc[p_num].get_text()
+        
+    isbn_match = re.search(r'ISBN(?:-1[03])?(?:\s*:\s*|\s+)([0-9-]{10,17}[Xx]?)', front_matter_text, re.IGNORECASE)
+    edition_match = re.search(r'((?:\d+(?:st|nd|rd|th)|[Ff]irst|[Ss]econd|[Tt]hird|[Ff]ourth|[Ff]ifth|[Ss]ixth|[Ss]eventh|[Ee]ighth|[Nn]inth|[Tt]enth)\s+[Ee]dition)', front_matter_text)
+    
+    if isbn_match:
+        metadata_dict["isbn"] = isbn_match.group(1).strip()
+    if edition_match:
+        metadata_dict["edition"] = edition_match.group(1).strip()
+
     for i in range(len(book_structure)):
         start_page = book_structure[i]["page"]
         if i + 1 < len(book_structure):
@@ -85,15 +96,16 @@ def extract_structure(pdf_path):
             
         book_structure[i]["length_pages"] = max(1, length)
         del book_structure[i]["page"]
-        
-        # Clean up the nested leaf nodes for a prettier YAML
         book_structure[i]["subheadings"] = simplify_leaf_nodes(book_structure[i]["subheadings"])
         
-    return book_structure
+    return {
+        "metadata": metadata_dict,
+        "chapters": book_structure
+    }
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python pdf_to_yaml.py <path_to_pdf>")
+        print("Usage: python pdf_to_yaml.py ")
         sys.exit(1)
         
     pdf_file = sys.argv[1]
@@ -103,7 +115,7 @@ def main():
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(structure, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
         
-    print(f"Extraction complete! Deeply nested structure saved to '{output_file}'.")
+    print(f"Extraction complete! Metadata and structure saved to '{output_file}'.")
 
 if __name__ == "__main__":
     main()

@@ -48,21 +48,21 @@ TRELLO_LIST_ID=your_trello_list_id
 ### 1. Extract the Book Structure
 Convert your PDF into a YAML structure file:
 ```bash
-python pdf_to_yaml.py path/to/your/book.pdf
+python src/pdf_to_yaml.py path/to/your/book.pdf
 ```
 *This will generate a `book_structure.yaml` file in your directory.*
 
 ### 2. Populate Trello
 Turn the YAML structure into Trello cards:
 ```bash
-python yaml_to_trello.py book_structure.yaml
+python src/yaml_to_trello.py book_structure.yaml
 ```
 *You'll be prompted to provide a tag/label and a short name for the cards.*
 
 ### 3. Clear the List (Optional)
 If you made a mistake or just want to wipe the target Trello list clean:
 ```bash
-python nuke_trello_list.py
+python src/nuke_trello_list.py
 ```
 *Note: This will permanently delete all cards in the specified list.*
 
@@ -75,7 +75,7 @@ If you want to run the test suite and check coverage:
 pip install -r requirements-test.txt
 
 # Run pytest with coverage
-pytest --cov=. --cov-report=term-missing
+pytest --cov=src --cov-report=term-missing
 ```
 
 Happy reading, and happy doing!

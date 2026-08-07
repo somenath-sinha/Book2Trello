@@ -34,6 +34,11 @@ TRELLO_BOARD_ID=your_trello_board_id
 TRELLO_LIST_ID=your_trello_list_id
 ```
 
+**How to find your Trello IDs:**
+1. **API Key & Token:** Go to [Trello's Power-Up Admin portal](https://trello.com/power-ups/admin/) to generate your API Key and a Server Token.
+2. **Board ID:** Open your Trello board in a web browser. Add `.json` to the end of the URL (e.g., `https://trello.com/b/xyz123/my-board.json`). Search the resulting JSON page for `"id":` near the top—that's your `TRELLO_BOARD_ID`.
+3. **List ID:** *Note: First, create a list on your board named "Automated TODO". This list is meant to be managed exclusively by these scripts, so try to leave it alone unless you are interacting via the script.* On that same `.json` page, search for `"name":"Automated TODO"`. The `"id":` property directly preceding or inside that list object is your `TRELLO_LIST_ID`.
+
 ## Usage
 
 ### 1. Extract the Book Structure

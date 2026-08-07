@@ -20,6 +20,10 @@ def should_ignore_chapter(title):
 def should_ignore_subheading(title):
     return any(ignore in title.strip().lower() for ignore in SUBHEADING_IGNORE)
 
+def is_structural_grouping(title):
+    # Catches "Part I", "Part 1", "Section IV", "Unit 3", etc.
+    return bool(re.match(r'^(part|section|unit)\s+([ivx]+|\d+)', title.strip(), re.IGNORECASE))
+
 def simplify_leaf_nodes(nodes):
     simplified = []
     for n in nodes:
@@ -36,14 +40,14 @@ def extract_structure(pdf_path):
     meta = doc.metadata
     full_title = meta.get("title") or "Unknown Title"
     
-    # Heuristic to suggest a short title
     if full_title != "Unknown Title":
-        # Split at colon or em-dash to drop subtitles
         short_title = re.split(r'[:\-]', full_title)[0].strip()
     else:
-        # Fallback: grab the first substantial line from the very first page
-        first_page_lines = doc[0].get_text().strip().split('\n')
-        short_title = next((line.strip() for line in first_page_lines if len(line.strip()) > 3), "Unknown Title")
+        try:
+            first_page_lines = doc[0].get_text().strip().split('\n')
+            short_title = next((line.strip() for line in first_page_lines if len(line.strip()) > 3), "Unknown Title")
+        except Exception:
+            short_title = "Unknown Title"
 
     metadata_dict = {
         "title": full_title,
@@ -66,19 +70,28 @@ def extract_structure(pdf_path):
             
         title_clean = title_text.strip()
         
-        if level == 1 and should_ignore_chapter(title_clean):
+        # Automatically skip Part/Section grouping nodes so their children promote
+        if is_structural_grouping(title_clean):
+            stack.clear()
+            continue
+            
+        # Determine hierarchy dynamically
+        while stack and stack[-1][0] >= level:
+            stack.pop()
+            
+        is_root = len(stack) == 0
+        
+        # Apply ignore rules dynamically based on whether it acts as a chapter or subheading
+        if is_root and should_ignore_chapter(title_clean):
             ignore_threshold = level
             continue
-        elif level > 1 and should_ignore_subheading(title_clean):
+        elif not is_root and should_ignore_subheading(title_clean):
             ignore_threshold = level
             continue
             
         node = {"title": title_clean, "page": page, "subheadings": []}
         
-        while stack and stack[-1][0] >= level:
-            stack.pop()
-            
-        if not stack:
+        if is_root:
             book_structure.append(node)
         else:
             stack[-1][1]["subheadings"].append(node)
@@ -107,7 +120,8 @@ def extract_structure(pdf_path):
             length = doc.page_count - start_page 
             
         book_structure[i]["length_pages"] = max(1, length)
-        del book_structure[i]["page"]
+        if "page" in book_structure[i]:
+            del book_structure[i]["page"]
         book_structure[i]["subheadings"] = simplify_leaf_nodes(book_structure[i]["subheadings"])
         
     return {

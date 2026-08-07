@@ -86,11 +86,9 @@ def main():
     
     tag_name = input("Tag/Label name for the Trello board (e.g., 'DevOps'): ")
     
-    # Present the suggested short name as the default option
     suggested_short = metadata.get('short_title', metadata.get('title', 'Book'))
     short_name = input(f"Short book name for card titles [{suggested_short}]: ")
     
-    # Use the suggestion if the user simply hits Enter
     if not short_name.strip():
         short_name = suggested_short
     

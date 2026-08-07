@@ -222,3 +222,5 @@ __marimo__/
 # Custom
 .secrets
 .DS_Store
+book_structure.yaml
+*.pdf

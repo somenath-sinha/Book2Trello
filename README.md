@@ -14,7 +14,7 @@ It helps you seamlessly integrate reading into your workflow by turning chapters
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/Book2Trello.git
+git clone https://github.com/somenath-sinha/Book2Trello.git
 cd Book2Trello
 ```
 

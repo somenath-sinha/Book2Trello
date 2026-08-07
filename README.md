@@ -4,6 +4,8 @@
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Code coverage](https://codecov.io/gh/somenath-sinha/Book2Trello/branch/main/graph/badge.svg)](https://codecov.io/gh/somenath-sinha/Book2Trello)
 
+<img width="858" height="541" alt="image" src="https://github.com/user-attachments/assets/4d80b29d-a996-41b5-9d24-c0200caab79a" />
+
 Welcome to **Book2Trello**! This is a collection of scripts designed to take the structure of your PDF books and turn them into actionable, organized tasks on a Trello board. 
 
 It helps you seamlessly integrate reading into your workflow by turning chapters and subheadings into checklists and cards.

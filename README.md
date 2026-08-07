@@ -1,8 +1,9 @@
 # Book2Trello: PDF to Practice
 
-[![Tests](https://github.com/somenath-sinha/Book2Trello/actions/workflows/tests.yml/badge.svg)](https://github.com/somenath-sinha/Book2Trello/actions/workflows/tests.yml)
+[![Tests](https://github.com/somenath-sinha/Book2Trello/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/somenath-sinha/Book2Trello/actions/workflows/tests.yml)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Code coverage](https://codecov.io/gh/somenath-sinha/Book2Trello/branch/main/graph/badge.svg)](https://codecov.io/gh/somenath-sinha/Book2Trello)
+
 Welcome to **Book2Trello**! This is a collection of scripts designed to take the structure of your PDF books and turn them into actionable, organized tasks on a Trello board. 
 
 It helps you seamlessly integrate reading into your workflow by turning chapters and subheadings into checklists and cards.

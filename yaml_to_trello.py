@@ -114,9 +114,15 @@ def main():
     for idx, chapter in enumerate(chapters, 1):
         
         raw_title = chapter['title']
-        cleaned_title = re.sub(r'^Chapter\s+\d+[\.\:]?\s*', '', raw_title, flags=re.IGNORECASE)
         
-        card_title = f"{short_name.strip()}: {idx}. {cleaned_title}"
+        # Aggressively strip "1. " or "Chapter 1: " from the raw title
+        cleaned_title = re.sub(r'^(?:Chapter\s+)?\d+[\.\:\-]?\s*', '', raw_title, flags=re.IGNORECASE)
+        
+        # Build the custom numeric prefix
+        part_val = chapter.get('part')
+        num_prefix = f"{part_val}.{idx}" if part_val else f"{idx}"
+        
+        card_title = f"{short_name.strip()}: {num_prefix}. {cleaned_title}"
         
         if card_title in existing_cards:
             print(f"Skipping -> {card_title} (Already exists)")

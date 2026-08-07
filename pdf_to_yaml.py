@@ -22,7 +22,7 @@ def should_ignore_subheading(title):
 
 def is_structural_grouping(title):
     # Catches "Part I", "Part 1", "Section IV", "Unit 3", etc.
-    return bool(re.match(r'^(part|section|unit)\s+([ivx]+|\d+)', title.strip(), re.IGNORECASE))
+    return re.match(r'^(part|section|unit)\s+([ivx]+|\d+)', title.strip(), re.IGNORECASE)
 
 def simplify_leaf_nodes(nodes):
     simplified = []
@@ -59,6 +59,7 @@ def extract_structure(pdf_path):
     book_structure = []
     stack = []
     ignore_threshold = float('inf')
+    current_part = ""
     
     for item in toc:
         level, title_text, page = item
@@ -70,18 +71,18 @@ def extract_structure(pdf_path):
             
         title_clean = title_text.strip()
         
-        # Automatically skip Part/Section grouping nodes so their children promote
-        if is_structural_grouping(title_clean):
+        # Identify the active Part/Section prefix (e.g., "I", "II", "1")
+        part_match = is_structural_grouping(title_clean)
+        if part_match:
+            current_part = part_match.group(2).upper()
             stack.clear()
             continue
             
-        # Determine hierarchy dynamically
         while stack and stack[-1][0] >= level:
             stack.pop()
             
         is_root = len(stack) == 0
         
-        # Apply ignore rules dynamically based on whether it acts as a chapter or subheading
         if is_root and should_ignore_chapter(title_clean):
             ignore_threshold = level
             continue
@@ -91,6 +92,10 @@ def extract_structure(pdf_path):
             
         node = {"title": title_clean, "page": page, "subheadings": []}
         
+        # Tag root chapters with their governing Part
+        if is_root and current_part:
+            node["part"] = current_part
+        
         if is_root:
             book_structure.append(node)
         else:
@@ -98,7 +103,6 @@ def extract_structure(pdf_path):
             
         stack.append((level, node))
         
-    # Scan front matter for Edition and ISBN
     first_chapter_page = book_structure[0]["page"] if book_structure else 0
     front_matter_text = ""
     for p_num in range(min(first_chapter_page - 1, doc.page_count)):

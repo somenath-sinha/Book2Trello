@@ -1,3 +1,7 @@
+"""
+Script to permanently delete all cards from a specified Trello list.
+"""
+
 import os
 import sys
 import requests
@@ -7,6 +11,11 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=".secrets")
 
 def main():
+    """
+    Reads Trello API credentials and list ID from the .secrets file,
+    fetches all cards in the list, and prompts the user for confirmation
+    before permanently deleting them.
+    """
     api_key = os.getenv("TRELLO_API_KEY")
     token = os.getenv("TRELLO_TOKEN")
     list_id = os.getenv("TRELLO_LIST_ID")

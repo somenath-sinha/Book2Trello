@@ -1,3 +1,8 @@
+"""
+Reads a book structure from a YAML file and creates corresponding
+cards and checklists in a specified Trello list.
+"""
+
 import os
 import sys
 import yaml
@@ -8,7 +13,13 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=".secrets")
 
 class TrelloManager:
+    """
+    Manages API interactions with Trello.
+    """
     def __init__(self):
+        """
+        Initializes the manager by loading credentials from environment variables.
+        """
         self.api_key = os.getenv("TRELLO_API_KEY")
         self.token = os.getenv("TRELLO_TOKEN")
         
@@ -20,6 +31,9 @@ class TrelloManager:
         self.auth = {"key": self.api_key, "token": self.token}
 
     def get_or_create_label(self, board_id, label_name, color="yellow"):
+        """
+        Retrieves the ID of an existing label by name or creates it if it doesn't exist.
+        """
         url = f"{self.base_url}/boards/{board_id}/labels"
         response = requests.get(url, params=self.auth)
         
@@ -31,11 +45,17 @@ class TrelloManager:
         return requests.post(f"{self.base_url}/labels", params=payload).json()['id']
 
     def get_existing_card_names(self, list_id):
+        """
+        Returns a set of card names currently present in the specified list.
+        """
         url = f"{self.base_url}/lists/{list_id}/cards"
         response = requests.get(url, params=self.auth)
         return {card['name'] for card in response.json()}
 
     def _flatten_subheadings(self, subheadings, prefix=""):
+        """
+        Recursively flattens a nested list of subheadings into a flat list of strings.
+        """
         flat_list = []
         for item in subheadings:
             if isinstance(item, str):
@@ -50,6 +70,9 @@ class TrelloManager:
         return flat_list
 
     def create_card(self, list_id, name, label_id, comment_text, raw_subheadings):
+        """
+        Creates a new card with a label, comment, and optional checklist for subheadings.
+        """
         payload = {**self.auth, "idList": list_id, "name": name, "idLabels": label_id}
         card_res = requests.post(f"{self.base_url}/cards", params=payload)
         card_id = card_res.json()['id']
@@ -66,6 +89,10 @@ class TrelloManager:
                 requests.post(f"{self.base_url}/checklists/{checklist_id}/checkItems", params={**self.auth, "name": item})
 
 def main():
+    """
+    Main function to read the YAML file, prompt the user for configuration,
+    and trigger Trello card creation.
+    """
     if len(sys.argv) < 2:
         print("Usage: python yaml_to_trello.py ")
         sys.exit(1)

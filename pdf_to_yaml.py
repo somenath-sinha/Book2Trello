@@ -1,3 +1,8 @@
+"""
+Extracts the table of contents and structure from a PDF file
+and outputs it as a YAML file, filtering out unwanted chapters.
+"""
+
 import pymupdf
 import yaml
 import sys
@@ -15,16 +20,31 @@ SUBHEADING_IGNORE = [
 ]
 
 def should_ignore_chapter(title):
+    """
+    Checks if a chapter title should be ignored based on a predefined list
+    (e.g., prefaces, indices, appendices).
+    """
     return any(ignore in title.strip().lower() for ignore in CHAPTER_IGNORE)
 
 def should_ignore_subheading(title):
+    """
+    Checks if a subheading should be ignored based on a predefined list
+    (e.g., exercises, case studies).
+    """
     return any(ignore in title.strip().lower() for ignore in SUBHEADING_IGNORE)
 
 def is_structural_grouping(title):
+    """
+    Identifies structural groupings like 'Part I' or 'Section 3'.
+    Returns the regex match object if found.
+    """
     # Catches "Part I", "Part 1", "Section IV", "Unit 3", etc.
     return re.match(r'^(part|section|unit)\s+([ivx]+|\d+)', title.strip(), re.IGNORECASE)
 
 def simplify_leaf_nodes(nodes):
+    """
+    Simplifies nodes with empty subheadings into a flat string list.
+    """
     simplified = []
     for n in nodes:
         if not n["subheadings"]:
@@ -35,6 +55,10 @@ def simplify_leaf_nodes(nodes):
     return simplified
 
 def extract_structure(pdf_path):
+    """
+    Extracts metadata and the structural hierarchy of the book from a PDF.
+    Returns a dictionary containing the extracted data.
+    """
     doc = pymupdf.open(pdf_path)
     
     meta = doc.metadata
@@ -134,6 +158,10 @@ def extract_structure(pdf_path):
     }
 
 def main():
+    """
+    Main entry point. Parses command-line arguments and triggers
+    extraction and YAML saving.
+    """
     if len(sys.argv) < 2:
         print("Usage: python pdf_to_yaml.py ")
         sys.exit(1)

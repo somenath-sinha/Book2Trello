@@ -224,3 +224,4 @@ __marimo__/
 .DS_Store
 book_structure.yaml
 *.pdf
+.vscode

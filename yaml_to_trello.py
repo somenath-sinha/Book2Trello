@@ -84,7 +84,7 @@ def main():
     comment_text = f"**Source:** {book_title}\n**Edition:** {edition}\n**ISBN:** {isbn}"
     
     trello = TrelloManager()
-    label_id = trerello.get_or_create_label(board_id, tag_name)
+    label_id = trello.get_or_create_label(board_id, tag_name)
     
     print("\nBuilding Trello Cards...")
     for idx, chapter in enumerate(chapters, 1):
